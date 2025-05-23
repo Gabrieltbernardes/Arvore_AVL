@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Árvore AVL</title>
+    <style>
+        /* Estilos básicos para o layout da página */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+        }
+        .container {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .form-container {
+            margin-right: 40px;
+        }
+        input {
+            padding: 5px;
+            margin: 5px;
+        }
+        button {
+            padding: 10px;
+            margin: 5px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #treeDisplay {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            text-align: center;
+        }
+        /* Estilo para os nós exibidos na árvore */
+        .node {
+            display: inline-block;
+            text-align: center;
+            margin: 10px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 5px;
+            background-color: #f9f9f9;
+        }
+
+        .node-value {
+            font-weight: bold;
+        }
+
+        .history {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: #fff;
+        }
+
+        .history ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .history li {
+            margin: 5px 0;
+        }
+
+        .children {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+
+        .empty-child {
+            flex: 1;
+            height: 40px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Árvore AVL - Inserção com Rotação</h1>
+
+    <div class="container">
+        <div class="form-container">
+            <!-- Entrada para valores e botões de operação -->
+            <h3>Operações</h3>
+            <input type="number" id="valueInput" placeholder="Valor" />
+            <button onclick="insertNode()">Inserir</button>
+            <button onclick="removeNode()">Remover</button>
+            <button onclick="searchNode()">Buscar</button>
+            <button onclick="clearTree()">Limpar Árvore</button>
+        </div>
+        
+        <div>
+            <h3>Estrutura da Árvore:</h3>
+            <div id="treeDisplay">Árvore está vazia.</div>
+            <div class="history">
+                <h4>Histórico de Alterações</h4>
+                <ul id="historyList"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Classe que representa um nó da árvore AVL
+        class No {
+            constructor(valor) {
+                this.valor = valor;
+                this.esquerda = null;
+                this.direita = null;
+                this.altura = 1;
+            }
+        }
+        // Classe que representa a árvore AVL
+        class ArvoreAVL {
+            constructor() {
+                this.raiz = null;
+                this.historico = []; 
+            }
+            // Método público para inserir um valor na árvore
+            inserir(valor) {
+                const tamanhoAntes = this._contarNos(this.raiz); // Conta o número de nós antes da operação
+                this.raiz = this._inserir(this.raiz, valor);
+                const tamanhoDepois = this._contarNos(this.raiz); // Conta o número de nós após a operação
+
+                // Adiciona ao histórico somente se a árvore foi modificada
+                if (tamanhoDepois > tamanhoAntes) {
+                    this.historico.push(`Inserido ${valor}`);
+                    this.atualizarHistorico();
+                }
+            }
+
+            // Método privado para realizar a inserção recursivamente
+            _inserir(raiz, valor) {
+                if (!raiz) return new No(valor);// Insere um novo nó se a posição estiver vazia
+
+                if (valor < raiz.valor) {
+                    raiz.esquerda = this._inserir(raiz.esquerda, valor);// Insere na subárvore esquerda
+                } else if (valor > raiz.valor) {
+                    raiz.direita = this._inserir(raiz.direita, valor);// Insere na subárvore direita
+                } else {
+                    alert("Valor já existe na árvore.");
+                    return raiz;
+                }
+                // Atualiza a altura do nó
+                raiz.altura =  1 + Math.max(this._altura(raiz.esquerda), this._altura(raiz.direita));
+                // Realiza o balanceamento do nó
+                return this._balancear(raiz, valor);
+            }
+
+            // Método privado para balancear o nó
+            _balancear(raiz, valor) {
+                const balanco = this._fatorDeBalanco(raiz);// Calcula o fator de balanceamento
+
+                // Caso 1: Desbalanceamento à esquerda (rotação simples à direita)
+                if (balanco > 1 && valor < raiz.esquerda.valor) {
+                    alert(`Rotação simples à direita no nó ${raiz.valor}`);
+                    this.historico.push(`Rotação simples à direita no nó ${raiz.valor}`);
+                    return this._rotacaoDireita(raiz);
+                }
+
+                // Caso 2: Desbalanceamento à direita (rotação simples à esquerda)
+                if (balanco < -1 && valor > raiz.direita.valor) {
+                    alert(`Rotação simples à esquerda no nó ${raiz.valor}`);
+                    this.historico.push(`Rotação simples à esquerda no nó ${raiz.valor}`);
+                    return this._rotacaoEsquerda(raiz);
+                }
+
+                // Caso 3: Desbalanceamento esquerda-direita (rotação dupla)
+                if (balanco > 1 && valor > raiz.esquerda.valor) {
+                    alert(`Rotação dupla (esquerda-direita) no nó ${raiz.valor}`);
+                    this.historico.push(`Rotação dupla (esquerda-direita) no nó ${raiz.valor}`);
+                    raiz.esquerda = this._rotacaoEsquerda(raiz.esquerda);
+                    return this._rotacaoDireita(raiz);
+                }
+
+                // Caso 4: Desbalanceamento direita-esquerda (rotação dupla)
+                if (balanco < -1 && valor < raiz.direita.valor) {
+                    alert(`Rotação dupla (direita-esquerda) no nó ${raiz.valor}`);
+                    this.historico.push(`Rotação dupla (direita-esquerda) no nó ${raiz.valor}`);
+                    raiz.direita = this._rotacaoDireita(raiz.direita);
+                    return this._rotacaoEsquerda(raiz);
+                }
+
+                return raiz;// Retorna o nó balanceado
+            }
+
+            // Método público para remover um valor da árvore
+            remover(valor) {
+                const tamanhoAntes = this._contarNos(this.raiz); // Conta o número de nós antes da operação
+                this.raiz = this._remover(this.raiz, valor);
+                const tamanhoDepois = this._contarNos(this.raiz); // Conta o número de nós após a operação
+
+                // Adiciona ao histórico somente se a árvore foi modificada
+                if (tamanhoDepois < tamanhoAntes) {
+                    this.historico.push(`Removido ${valor}`);
+                    this.atualizarHistorico();
+                }
+            }
+
+            
+            _remover(raiz, valor) {
+                // Caso base: se o nó raiz é nulo, significa que o valor não foi encontrado na árvore.
+                if (!raiz) {
+                    alert("Valor não encontrado.");
+                    return raiz;
+                }
+                // Se o valor a ser removido é menor que o valor do nó atual, busca na subárvore esquerda.
+                if (valor < raiz.valor) {
+                    raiz.esquerda = this._remover(raiz.esquerda, valor);
+                } 
+                // Se o valor a ser removido é maior que o valor do nó atual, busca na subárvore direita.
+                else if (valor > raiz.valor) {
+                    raiz.direita = this._remover(raiz.direita, valor);
+                } 
+                // Caso contrário, o nó a ser removido foi encontrado.
+                else {
+                    if (!raiz.esquerda || !raiz.direita) {
+                        raiz = raiz.esquerda || raiz.direita;
+                    } else {
+                        const sucessor = this._minValueNode(raiz.direita);
+                        raiz.valor = sucessor.valor;
+                        raiz.direita = this._remover(raiz.direita, sucessor.valor);
+                    }
+                }
+
+                if (!raiz) return raiz;// Caso a árvore fique vazia após a remoção, retorna null.
+
+                // Atualiza a altura do nó após a remoção
+                raiz.altura = 1 + Math.max(this._altura(raiz.esquerda), this._altura(raiz.direita));
+                // Realiza o balanceamento para garantir as propriedades da AVL.
+                return this._balancear(raiz, valor);
+            }
+
+            buscar(valor) {
+                // Utiliza a função auxiliar para verificar se o valor está na árvore.
+                const encontrado = this._buscar(this.raiz, valor);
+                // Exibe uma mensagem informando se o valor foi encontrado ou não.
+                alert(encontrado ? `Valor ${valor} encontrado na árvore.` : `Valor ${valor} não encontrado.`);
+            }
+
+            _buscar(raiz, valor) {
+                // Caso base: se o nó atual for nulo, o valor não está na árvore.
+                if (!raiz) return false;
+                // Se o valor atual é igual ao valor procurado, retorna verdadeiro.
+                if (valor === raiz.valor) return true;
+                // Realiza a busca recursivamente na subárvore esquerda ou direita.
+                return valor < raiz.valor
+                    ? this._buscar(raiz.esquerda, valor)
+                    : this._buscar(raiz.direita, valor);
+            }
+
+            _altura(no) {
+                // Retorna a altura do nó ou 0 se o nó for nulo.
+                return no ? no.altura : 0;
+            }
+
+            _fatorDeBalanco(no) {
+                // Calcula o fator de balanceamento como a diferença entre as alturas das subárvores.
+                return no ? this._altura(no.esquerda) - this._altura(no.direita) : 0;
+            }
+
+            _rotacaoEsquerda(z) {
+                // Realiza uma rotação simples à esquerda no nó `z`.
+                const y = z.direita;
+                z.direita = y.esquerda;
+                y.esquerda = z;
+
+                // Atualiza as alturas dos nós após a rotação.
+                z.altura = 1 + Math.max(this._altura(z.esquerda), this._altura(z.direita));
+                y.altura = 1 + Math.max(this._altura(y.esquerda), this._altura(y.direita));
+                return y; // Retorna o novo nó raiz.
+            }
+
+            _rotacaoDireita(z) {
+                // Realiza uma rotação simples à direita no nó `z`
+                const y = z.esquerda;
+                z.esquerda = y.direita;
+                y.direita = z;
+
+                // Atualiza as alturas dos nós após a rotação.
+                z.altura = 1 + Math.max(this._altura(z.esquerda), this._altura(z.direita));
+                y.altura = 1 + Math.max(this._altura(y.esquerda), this._altura(y.direita));
+                return y;// Retorna o novo nó raiz.
+            }
+
+            _minValueNode(no) {
+                // Encontra o nó com o menor valor (mais à esquerda) na subárvore.
+                while (no.esquerda) no = no.esquerda;// Continua até encontrar um nó sem filho à esquerda.
+                return no; // Retorna o nó com o menor valor.
+            }
+
+            // Gera uma representação visual da árvore AVL em formato de elementos HTML.
+            displayArvoreHTML(no = this.raiz) {
+                if (!no) return null;// Se o nó é nulo, retorna null.
+
+                const elementoNo = document.createElement("div");
+                elementoNo.className = "node";
+
+                const valorElemento = document.createElement("div");
+                valorElemento.className = "node-value";
+                valorElemento.textContent = `${no.valor} (H: ${no.altura}, FB: ${this._fatorDeBalanco(no)})`;
+                elementoNo.appendChild(valorElemento);
+
+                const filhos = document.createElement("div");
+                filhos.className = "children";
+
+                filhos.appendChild(this.displayArvoreHTML(no.esquerda) || this._criarFilhoVazio());
+                filhos.appendChild(this.displayArvoreHTML(no.direita) || this._criarFilhoVazio());
+
+                elementoNo.appendChild(filhos);
+                return elementoNo;
+            }
+
+            _criarFilhoVazio() {
+                // Cria um elemento visual para representar um nó vazio na árvore.
+                const vazio = document.createElement("div");
+                vazio.className = "empty-child";
+                return vazio;
+            }
+
+            atualizarDisplay() {
+                // Atualiza a exibição visual da árvore na página.
+                const displayArvore = document.getElementById("treeDisplay");
+                displayArvore.innerHTML = "";
+                const arvoreHTML = this.displayArvoreHTML();
+                arvoreHTML ? displayArvore.appendChild(arvoreHTML) : displayArvore.textContent = "Árvore está vazia.";
+            }
+
+            atualizarHistorico() {
+            // Atualiza o histórico de operações realizadas na árvore.
+            const historicoDisplay = document.getElementById("historyList");
+            historicoDisplay.innerHTML = this.historico// Converte o histórico em uma lista de itens.
+            .map((item, index) => `<li><strong>#${index + 1}:</strong> ${item}</li>`)
+            .join("");// Junta todos os itens em uma string única.
+            }
+
+            _contarNos(no) {
+                // Conta o número total de nós na árvore, de forma recursiva.
+                if (!no) return 0;
+                return 1 + this._contarNos(no.esquerda) + this._contarNos(no.direita);
+            }
+
+        }
+
+        const arvore = new ArvoreAVL();// Instancia uma nova árvore AVL.
+
+        function insertNode() {
+            // Insere um novo nó na árvore com o valor fornecido pelo usuário.
+            const valor = parseInt(document.getElementById("valueInput").value);
+            if (isNaN(valor)) return alert("Insira um número válido.");
+            arvore.inserir(valor);
+            arvore.atualizarDisplay();
+        }
+
+        function removeNode() {
+            // Remove um nó da árvore com o valor fornecido pelo usuário.
+            const valor = parseInt(document.getElementById("valueInput").value);
+            if (isNaN(valor)) return alert("Insira um número válido.");
+            arvore.remover(valor);
+            arvore.atualizarDisplay();
+        }
+
+        function searchNode() {
+            // Busca por um nó na árvore com o valor fornecido pelo usuário.
+            const valor = parseInt(document.getElementById("valueInput").value);
+            if (isNaN(valor)) return alert("Insira um número válido.");
+            arvore.buscar(valor);
+        }
+
+        function clearTree() {
+            // Limpa a árvore, removendo todos os nós e o histórico de operações.
+            arvore.raiz = null;        
+            arvore.historico = [];     
+            arvore.atualizarDisplay(); 
+            arvore.atualizarHistorico(); 
+        }
+    </script>
+</body>
+</html>
